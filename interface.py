@@ -7,7 +7,7 @@ import threading
 from dataclasses import dataclass
 
 SAMPLE_RATE = 44100
-TIMEOUT = 100
+TIMEOUT = 30
 
 @dataclass
 class Note:
