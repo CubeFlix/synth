@@ -1355,6 +1355,10 @@
    'C:\\Users\\Kevin '
    'Chen\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\rtmidi\\collector.py',
    'PYMODULE'),
+  ('tkinter.ttk',
+   'C:\\Users\\Kevin '
+   'Chen\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\tkinter\\ttk.py',
+   'PYMODULE'),
   ('tkinter.messagebox',
    'C:\\Users\\Kevin '
    'Chen\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\tkinter\\messagebox.py',

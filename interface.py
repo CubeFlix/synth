@@ -47,6 +47,10 @@ class SynthInterface:
             os._exit(0)
         self.root.protocol("WM_DELETE_WINDOW", on_close_window)
 
+        self.menubar = tkinter.Menu(self.root)
+        self.menubar.add_command(label='Info', command=self.show_info_window)
+        self.root.config(menu=self.menubar)
+
         self.frame_left = tkinter.Frame(self.root)
         self.frame_center = tkinter.Frame(self.root)
         self.frame_right = tkinter.Frame(self.root)
@@ -101,6 +105,7 @@ class SynthInterface:
         self.start_synth_button.pack()
         self.stop_synth_button = ttk.Button(self.frame_right, text="Stop Synth", command=self.stop_synth)
         self.stop_synth_button.pack()
+        self.stop_synth_button.state(['disabled'])
         self.synth_status_label_var = tkinter.StringVar(self.root, "Synth stopped.")
         self.synth_status_label = tkinter.Label(self.frame_right, textvariable=self.synth_status_label_var)
         self.synth_status_label.pack()
@@ -128,6 +133,24 @@ class SynthInterface:
     def run(self):
         self.root.mainloop()
 
+    def show_info_window(self):
+        self.info_window = tkinter.Tk()
+        self.info_window.title(self.title)
+        self.info_window.resizable(False, False)
+        def callback(url):
+            import webbrowser
+            webbrowser.open_new_tab(url)
+        info_window_label_1 = tkinter.Label(self.info_window, text="A simple sine/square MIDI synthesizer with alternate tuning systems.")
+        info_window_label_1.pack()
+        info_window_label_2 = tkinter.Label(self.info_window, text="Built by Kevin Chen (cubeflix) with Python.")
+        info_window_label_2.pack()
+        info_window_label_3 = tkinter.Label(self.info_window, text="https://github.com/cubeflix", fg="blue", cursor="hand2")
+        info_window_label_3.pack()
+        info_window_label_3.bind("<Button-1>", lambda _: callback("https://github.com/cubeflix"))
+        info_window_label_4 = tkinter.Label(self.info_window, text="kevin.signal@gmail.com", fg="blue", cursor="hand2")
+        info_window_label_4.pack()
+        info_window_label_4.bind("<Button-1>", lambda _: callback("mailto:kevin.signal@gmail.com"))    
+    
     def update_volume(self, _):
         self.volume = self.volume_slider.get()
         self.volume_label_var.set(f"Volume: {self.volume}%")
@@ -209,6 +232,8 @@ class SynthInterface:
         self.synth_status_label_var.set("Synth started.")
         self.synth_debug_label_var_3.set(f"Num notes: {len(self.current_notes)}")
         self.synth_debug_label_var_4.set(f"Num frames: {self.num_frames_count}")
+        self.start_synth_button.state(['disabled'])
+        self.stop_synth_button['state'] = tkinter.NORMAL
 
     def sound_play_thread(self):
         self.sound_thread_running = True
@@ -274,6 +299,8 @@ class SynthInterface:
         self.midi.closePort()
         self.midi.cancelCallback()
         self.synth_status_label_var.set("Synth stopped.")
+        self.start_synth_button['state'] = tkinter.NORMAL
+        self.stop_synth_button.state(['disabled'])
 
 if __name__ == '__main__':
     s = SynthInterface()
