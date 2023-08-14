@@ -86,6 +86,15 @@ class SynthInterface:
         self.should_attack_decay_smoothing_checkbox = ttk.Checkbutton(self.frame_right, text="Apply attack/decay smoothing", onvalue=True, offvalue=False, command=self.update_should_attack_decay_smoothing)
         self.should_attack_decay_smoothing_checkbox.pack()
         self.should_attack_decay_smoothing_checkbox.state(['selected'])
+        self.wave_type_label = tkinter.Label(self.frame_right, text="Wave type:")
+        self.wave_type_label.pack()
+        self.wave_type = tkinter.StringVar(self.root)
+        self.wave_type_sine_radiobutton = ttk.Radiobutton(self.frame_right, text="Sine wave", variable=self.wave_type, value="sine")
+        self.wave_type_sine_radiobutton.pack()
+        self.wave_type_square_radiobutton = ttk.Radiobutton(self.frame_right, text="Square wave", variable=self.wave_type, value="square")
+        self.wave_type_square_radiobutton.pack()
+        self.wave_type.set("sine")
+        self.wave_type_sine_radiobutton.invoke()
         self.reset_settings_button = ttk.Button(self.frame_right, text="Reset Settings", command=self.reset_settings)
         self.reset_settings_button.pack()
         self.start_synth_button = ttk.Button(self.frame_right, text="Start Synth", command=self.start_synth)
@@ -208,7 +217,10 @@ class SynthInterface:
             self.buffer -= self.buffer
             for note in self.current_notes[:]:
                 pitch = self.calculate_pitch(note.pitch, self.et) + self.hertz
-                sound = note.velocity / 400 * (np.sin(2 * np.pi * (self.base + self.num_frames_count * int(SAMPLE_RATE * TIMEOUT / 1000)) * pitch / SAMPLE_RATE)) * (self.volume / 100)
+                sound = np.sin(2 * np.pi * (self.base + self.num_frames_count * int(SAMPLE_RATE * TIMEOUT / 1000)) * pitch / SAMPLE_RATE)
+                if self.wave_type.get() == 'square':
+                    sound = np.sign(sound)
+                sound = note.velocity / 400 * sound * (self.volume / 100)
                 if note.is_new:
                     # Apply attack smoothing.
                     if self.should_attack_decay_smoothing:
@@ -220,6 +232,7 @@ class SynthInterface:
                         sound *= self.decay_smoothing
                     del self.current_notes[self.find_note_by_number(note.pitch)]
                 self.buffer += sound
+
             self.num_frames_count += 1
             if len(self.current_notes) == 0:
                 self.num_frames_count = 0
