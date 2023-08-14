@@ -1,0 +1,1 @@
+pyinstaller interface.py --onefile --noconsole --windowed

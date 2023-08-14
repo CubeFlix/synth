@@ -1,5 +1,4 @@
 [ ] compression
 [ ] play midi file
 [ ] tuning systems
-[ ] record as midi/wav
-[ ] file menu
+[ ] record as midi
