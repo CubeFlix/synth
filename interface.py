@@ -5,6 +5,7 @@ import pyaudio
 import numpy as np
 import threading
 from dataclasses import dataclass
+import math
 
 SAMPLE_RATE = 44100
 TIMEOUT = 30
@@ -13,6 +14,8 @@ TIMEOUT = 30
 class Note:
     pitch: int
     velocity: int
+    is_new: bool
+    should_remove: bool
 
 def calculate_pitch_et(pitch, et):
     return pow(2, (pitch - 69) / et) * 440
@@ -147,7 +150,9 @@ class SynthInterface:
         self.base = np.arange(int(SAMPLE_RATE * TIMEOUT / 1000))
         self.buffer = np.zeros(int(SAMPLE_RATE * TIMEOUT / 1000))
         self.calculate_pitch = calculate_pitch_et
-
+        self.attack_smoothing = self.base / len(self.base)
+        self.decay_smoothing = (TIMEOUT / 1000 - self.base / (SAMPLE_RATE)) / (TIMEOUT / 1000)
+        
         self.running = True
         
         # Start the sound generation loop.
@@ -164,9 +169,23 @@ class SynthInterface:
         while self.running:
             # Zero the buffer and calculate the sounds.
             self.buffer -= self.buffer
-            for note in self.current_notes:
+            for note in self.current_notes[:]:
                 pitch = self.calculate_pitch(note.pitch, self.et) + self.hertz
-                self.buffer += note.velocity / 500 * (np.sin(2 * np.pi * (self.base + self.num_frames_count * int(SAMPLE_RATE * TIMEOUT / 1000)) * pitch / SAMPLE_RATE)) * (self.volume / 100)
+                sound = note.velocity / 400 * (np.sin(2 * np.pi * (self.base + self.num_frames_count * int(SAMPLE_RATE * TIMEOUT / 1000)) * pitch / SAMPLE_RATE)) * (self.volume / 100)
+                if note.is_new:
+                    # Apply attack smoothing.
+                    sound *= self.attack_smoothing
+                    note.is_new = False
+                if note.should_remove:
+                    # Apply decay smoothing and delete the note.
+                    # # We calculate the greatest number of cycles we can have so we end at a 0.
+                    # max_samples_to_zero = math.floor(pitch * TIMEOUT/1000) / pitch * SAMPLE_RATE
+                    # offset = (self.num_frames_count * int(SAMPLE_RATE * TIMEOUT / 1000)) % (int(1/pitch * SAMPLE_RATE))
+                    # sound[int(max_samples_to_zero - offset):] = 0.0 
+                    # print(sound[-100:])
+                    sound *= self.decay_smoothing
+                    del self.current_notes[self.find_note_by_number(note.pitch)]
+                self.buffer += sound
             self.num_frames_count += 1
 
             # Write the sound to the output buffer.
@@ -185,10 +204,10 @@ class SynthInterface:
 
             # Process the message.
             if message.isNoteOn():
-                note = Note(message.getNoteNumber(), message.getVelocity())
+                note = Note(message.getNoteNumber(), message.getVelocity(), True, False)
                 self.current_notes.append(note)
             elif message.isNoteOff():
-                del self.current_notes[self.find_note_by_number(message.getNoteNumber())]
+                self.current_notes[self.find_note_by_number(message.getNoteNumber())].should_remove = True
             if len(self.current_notes) == 0:
                 self.num_frames_count = 0
 
