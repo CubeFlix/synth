@@ -13,6 +13,10 @@ import shutil
 
 SAMPLE_RATE = 44100
 TIMEOUT = 30
+ICON = 'synth.ico'
+import sys
+if getattr(sys, 'frozen', False):
+    ICON = os.path.join(sys._MEIPASS, ICON)
 
 @dataclass
 class Note:
@@ -25,7 +29,7 @@ def calculate_pitch_et(pitch, et):
     return pow(2, (pitch - 69) / et) * 440
 
 class SynthInterface:
-    def __init__(self, title="Kevin's Synth"):
+    def __init__(self, title="KSYNTH"):
         self.title = title
         self.running = False
         self.record = None
@@ -45,6 +49,7 @@ class SynthInterface:
         self.root = tkinter.Tk()
         self.root.title(self.title)
         self.root.resizable(False, False)
+        self.root.iconbitmap(ICON)
         def on_close_window():
             self.stop_synth()
             self.stop_record()
@@ -135,6 +140,12 @@ class SynthInterface:
         self.synth_debug_label_var_4 = tkinter.StringVar(self.root, "Num frames: [synth inactive]")
         self.synth_debug_label_4 = tkinter.Label(self.frame_debug, textvariable=self.synth_debug_label_var_4)
         self.synth_debug_label_4.pack()
+        self.synth_debug_label_var_5 = tkinter.StringVar(self.root, f"Output format: 32-bit float")
+        self.synth_debug_label_5 = tkinter.Label(self.frame_debug, textvariable=self.synth_debug_label_var_5)
+        self.synth_debug_label_5.pack()
+        self.synth_debug_label_var_5 = tkinter.StringVar(self.root, f"Record format: 32-bit int")
+        self.synth_debug_label_5 = tkinter.Label(self.frame_debug, textvariable=self.synth_debug_label_var_5)
+        self.synth_debug_label_5.pack()
 
         self.frame_left.pack(expand=True, fill=tkinter.BOTH, side=tkinter.LEFT)
         self.frame_center.pack(expand=True, fill=tkinter.BOTH, side=tkinter.LEFT)
@@ -150,10 +161,11 @@ class SynthInterface:
         self.info_window = tkinter.Tk()
         self.info_window.title(self.title)
         self.info_window.resizable(False, False)
+        self.info_window.iconbitmap(ICON)
         def callback(url):
             import webbrowser
             webbrowser.open_new_tab(url)
-        info_window_label_1 = tkinter.Label(self.info_window, text="A simple sine/square MIDI synthesizer with alternate tuning systems.")
+        info_window_label_1 = tkinter.Label(self.info_window, text="KSYNTH - A simple sine/square MIDI synthesizer with alternate tuning systems.")
         info_window_label_1.pack()
         info_window_label_2 = tkinter.Label(self.info_window, text="Built by Kevin Chen (cubeflix) with Python.")
         info_window_label_2.pack()
@@ -279,7 +291,7 @@ class SynthInterface:
             data = self.buffer.astype(np.float32).tobytes()
             self.stream.write(data)
             if self.record:
-                self.record.writeframes((self.buffer / 1.414 * 2147483647).astype(np.int32))
+                self.record.writeframes((self.buffer / 1.414 * 2147483647).astype(np.int32).tobytes())
             
             self.synth_debug_label_var_3.set(f"Num notes: {len(self.current_notes)}")
             self.synth_debug_label_var_4.set(f"Num frames: {self.num_frames_count}")

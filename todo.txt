@@ -1,4 +1,4 @@
-[ ] compression
+[ ] dynamic range compression
 [ ] play midi file
 [ ] tuning systems
 [ ] record as midi
