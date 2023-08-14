@@ -1,6 +1,4 @@
-[ ] attack/decay smoothing
 [ ] compression
-[ ] debug info
 [ ] sine wave / square wave
 [ ] play midi file
 [ ] tuning systems
