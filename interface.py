@@ -1,12 +1,15 @@
 import tkinter
 import tkinter.messagebox
-from tkinter import ttk
+from tkinter import ttk, filedialog
 import rtmidi
 import pyaudio
 import numpy as np
 import threading
 from dataclasses import dataclass
 import os
+import wave
+import tempfile
+import shutil
 
 SAMPLE_RATE = 44100
 TIMEOUT = 30
@@ -25,6 +28,7 @@ class SynthInterface:
     def __init__(self, title="Kevin's Synth"):
         self.title = title
         self.running = False
+        self.record = None
 
         # Settings.
         self.port = None
@@ -43,6 +47,7 @@ class SynthInterface:
         self.root.resizable(False, False)
         def on_close_window():
             self.stop_synth()
+            self.stop_record()
             self.root.destroy()
             os._exit(0)
         self.root.protocol("WM_DELETE_WINDOW", on_close_window)
@@ -109,6 +114,14 @@ class SynthInterface:
         self.synth_status_label_var = tkinter.StringVar(self.root, "Synth stopped.")
         self.synth_status_label = tkinter.Label(self.frame_right, textvariable=self.synth_status_label_var)
         self.synth_status_label.pack()
+        self.start_record_button = ttk.Button(self.frame_right, text="Record", command=self.start_record)
+        self.start_record_button.pack()
+        self.stop_record_button = ttk.Button(self.frame_right, text="Stop", command=self.stop_record)
+        self.stop_record_button.pack()
+        self.stop_record_button.state(['disabled'])
+        self.record_status_label_var = tkinter.StringVar(self.root, "Not recording.")
+        self.record_status_label = tkinter.Label(self.frame_right, textvariable=self.record_status_label_var)
+        self.record_status_label.pack()
         
         self.synth_debug_label_var_1 = tkinter.StringVar(self.root, f"Sample rate: {SAMPLE_RATE}")
         self.synth_debug_label_1 = tkinter.Label(self.frame_debug, textvariable=self.synth_debug_label_var_1)
@@ -263,7 +276,10 @@ class SynthInterface:
                 self.num_frames_count = 0
 
             # Write the sound to the output buffer.
-            self.stream.write(self.buffer.astype(np.float32).tobytes())
+            data = self.buffer.astype(np.float32).tobytes()
+            self.stream.write(data)
+            if self.record:
+                self.record.writeframes((self.buffer / 1.414 * 2147483647).astype(np.int32))
             
             self.synth_debug_label_var_3.set(f"Num notes: {len(self.current_notes)}")
             self.synth_debug_label_var_4.set(f"Num frames: {self.num_frames_count}")
@@ -301,6 +317,43 @@ class SynthInterface:
         self.synth_status_label_var.set("Synth stopped.")
         self.start_synth_button['state'] = tkinter.NORMAL
         self.stop_synth_button.state(['disabled'])
+
+    def start_record(self):
+        if not self.running:
+            tkinter.messagebox.showerror(self.title, "Please start the synth to record.")
+            return
+        
+        file = tempfile.NamedTemporaryFile('wb', delete=False)
+        wf = wave.open(file, 'wb')
+        wf.setnchannels(1)
+        wf.setsampwidth(self.audio.get_sample_size(pyaudio.paInt32))
+        wf.setframerate(SAMPLE_RATE)
+        self.record = wf
+        self.record_file = file
+        
+        self.record_status_label_var.set("Recording...")
+        self.start_record_button.state(['disabled'])
+        self.stop_record_button['state'] = tkinter.NORMAL
+
+    def stop_record(self):
+        if not self.record:
+            return
+        
+        wf = self.record
+        self.record = None
+        wf.close()
+        self.record_file.close()
+
+        self.record_status_label_var.set("Not recording.")
+        self.stop_record_button.state(['disabled'])
+        self.start_record_button['state'] = tkinter.NORMAL
+
+        filetypes = (('Waveform Audio File', '*.wav'), ('All Files', '*.*'))
+        file = filedialog.asksaveasfilename(confirmoverwrite=True, filetypes=filetypes, defaultextension='wav')
+        if not file:
+            return
+        shutil.copyfile(self.record_file.name, file)
+        os.remove(self.record_file.name)
 
 if __name__ == '__main__':
     s = SynthInterface()
