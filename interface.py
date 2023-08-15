@@ -10,6 +10,8 @@ import os
 import wave
 import tempfile
 import shutil
+import time
+from midiutil.MidiFile import MIDIFile
 
 SAMPLE_RATE = 44100
 TIMEOUT = 30
@@ -25,14 +27,54 @@ class Note:
     is_new: bool
     should_remove: bool
 
+@dataclass
+class MIDINote:
+    pitch: int
+    velocity: int
+    start_time: float
+
 def calculate_pitch_et(pitch, et):
     return pow(2, (pitch - 69) / et) * 440
 
+class MIDIRecordContext:
+    def __init__(self, file):
+        self.midi = MIDIFile(1)
+        self.time = time.time()
+        self.file = file
+        self.midi.addTrackName(0, 0, "KSYNTH")
+        self.midi.addTempo(0, 0, 120)
+        self.current_notes = []
+    
+    def note_on(self, note):
+        midi_note = MIDINote(note.pitch, note.velocity, time.time())
+        self.current_notes.append(midi_note)
+
+    def find_note(self, num):
+        # Find the note.
+        for i, temp in enumerate(self.current_notes):
+            if num == temp.pitch:
+                # Found the note.
+                return i
+
+    def note_off(self, num):
+        i = self.find_note(num)
+        if not i:
+            return
+        note_start = (self.current_notes[i].start_time - self.time) * 2 # Calculate number of beats (120 bpm)
+        duration = (time.time() - self.current_notes[i].start_time) * 2 # Calculate duration
+        self.midi.addNote(0, 0, self.current_notes[i].pitch, note_start, duration, self.current_notes[i].velocity)
+        del self.current_notes[i]
+
+    def close(self):
+        self.midi.writeFile(self.file)
+        self.file.close()
+        
 class SynthInterface:
     def __init__(self, title="KSYNTH"):
         self.title = title
         self.running = False
         self.record = None
+        self.midi_record = None
 
         # Settings.
         self.port = None
@@ -127,6 +169,14 @@ class SynthInterface:
         self.record_status_label_var = tkinter.StringVar(self.root, "Not recording.")
         self.record_status_label = tkinter.Label(self.frame_right, textvariable=self.record_status_label_var)
         self.record_status_label.pack()
+        self.start_record_midi_button = ttk.Button(self.frame_right, text="Record MIDI", command=self.start_record_midi)
+        self.start_record_midi_button.pack()
+        self.stop_record_midi_button = ttk.Button(self.frame_right, text="Stop", command=self.stop_record_midi)
+        self.stop_record_midi_button.pack()
+        self.stop_record_button.state(['disabled'])
+        self.midi_record_status_label_var = tkinter.StringVar(self.root, "Not recording MIDI.")
+        self.midi_record_status_label = tkinter.Label(self.frame_right, textvariable=self.midi_record_status_label_var)
+        self.midi_record_status_label.pack()
         
         self.synth_debug_label_var_1 = tkinter.StringVar(self.root, f"Sample rate: {SAMPLE_RATE}")
         self.synth_debug_label_1 = tkinter.Label(self.frame_debug, textvariable=self.synth_debug_label_var_1)
@@ -314,8 +364,12 @@ class SynthInterface:
             if message.isNoteOn():
                 note = Note(message.getNoteNumber(), message.getVelocity(), True, False)
                 self.current_notes.append(note)
+                if self.record_midi:
+                    self.record_midi.note_on(note)
             elif message.isNoteOff():
                 self.current_notes[self.find_note_by_number(message.getNoteNumber())].should_remove = True
+                if self.record_midi:
+                    self.record_midi.note_off(message.getNoteNumber())
 
     def stop_synth(self):
         if self.running == False:
@@ -366,6 +420,39 @@ class SynthInterface:
             return
         shutil.copyfile(self.record_file.name, file)
         os.remove(self.record_file.name)
+
+    def start_record_midi(self):
+        if not self.running:
+            tkinter.messagebox.showerror(self.title, "Please start the synth to record MIDI.")
+            return
+        
+        file = tempfile.NamedTemporaryFile('wb', delete=False)
+        midi = MIDIRecordContext(file)
+        self.record_midi = midi
+        self.record_midi_file = file
+
+        self.midi_record_status_label_var.set("Recording...")
+        self.start_record_midi_button.state(['disabled'])
+        self.stop_record_midi_button['state'] = tkinter.NORMAL
+
+    def stop_record_midi(self):
+        if not self.record_midi:
+            return
+        
+        midi = self.record_midi
+        self.record_midi = None
+        midi.close()
+        self.record_midi_file.close()
+
+        self.midi_record_status_label_var.set("Not recording.")
+        self.stop_record_midi_button.state(['disabled'])
+        self.start_record_midi_button['state'] = tkinter.NORMAL
+        filetypes = (('MIDI File', '*.mid'), ('All Files', '*.*'))
+        file = filedialog.asksaveasfilename(confirmoverwrite=True, filetypes=filetypes, defaultextension='mid')
+        if not file:
+            return
+        shutil.copyfile(self.record_midi_file.name, file)
+        os.remove(self.record_midi_file.name)
 
 if __name__ == '__main__':
     s = SynthInterface()
