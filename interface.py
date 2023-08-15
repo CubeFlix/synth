@@ -95,6 +95,7 @@ class SynthInterface:
         def on_close_window():
             self.stop_synth()
             self.stop_record()
+            self.stop_record_midi()
             self.root.destroy()
             os._exit(0)
         self.root.protocol("WM_DELETE_WINDOW", on_close_window)
