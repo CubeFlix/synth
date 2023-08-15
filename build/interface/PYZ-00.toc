@@ -515,10 +515,6 @@
    'C:\\Users\\Kevin '
    'Chen\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\multiprocessing\\__init__.py',
    'PYMODULE'),
-  ('tracemalloc',
-   'C:\\Users\\Kevin '
-   'Chen\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\tracemalloc.py',
-   'PYMODULE'),
   ('getpass',
    'C:\\Users\\Kevin '
    'Chen\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\getpass.py',
@@ -554,6 +550,10 @@
   ('_py_abc',
    'C:\\Users\\Kevin '
    'Chen\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\_py_abc.py',
+   'PYMODULE'),
+  ('tracemalloc',
+   'C:\\Users\\Kevin '
+   'Chen\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\tracemalloc.py',
    'PYMODULE'),
   ('webbrowser',
    'C:\\Users\\Kevin '

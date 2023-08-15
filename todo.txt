@@ -1,3 +1,4 @@
 [ ] dynamic range compression
 [ ] play midi file
 [ ] tuning systems
+[ ] THERE IS A BUG WITH NOTE OFF

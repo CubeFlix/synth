@@ -74,7 +74,7 @@ class SynthInterface:
         self.title = title
         self.running = False
         self.record = None
-        self.midi_record = None
+        self.record_midi = None
 
         # Settings.
         self.port = None
