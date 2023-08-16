@@ -36,6 +36,22 @@ class MIDINote:
 def calculate_pitch_et(pitch, et):
     return pow(2, (pitch - 69) / et) * 440
 
+# Thomas Young 1799 temperament, based on https://www.math.uwaterloo.ca/~mrubinst/tuning/tuning.html.
+YOUNG_RATIOS = [1,1.055730636,1.119771437,1.187696971,1.253888072,1.334745462,1.407640848,1.496510232,1.583595961,1.675749414,1.781545449,1.878842233]
+
+def calculate_pitch_young(pitch, _):
+    # Thomas Young 1799 temperament (based on C=256).
+    return 256 * YOUNG_RATIOS[(pitch) % 12] * pow(2, pitch // 12 - 5)
+
+# Werckmeister temperament, based on https://en.wikipedia.org/wiki/Werckmeister_temperament.
+WERCKMEISTER_RATIOS = [
+    1/1, 256/243, 64/81 * pow(2, 1/2), 32/27, 256/243 * pow(2, 1/4), 4/3, 1024/729, 8/9 * pow(2 ** 3, 1/4), 128/81, 1024/729 * pow(2, 1/4), 16/9, 128/81 * pow(2, 1/4)
+]
+
+def calculate_pitch_werckmeister(pitch, _):
+    # Werckmeister temperament (based on C=256).
+    return 256 * WERCKMEISTER_RATIOS[(pitch) % 12] * pow(2, pitch // 12 - 5)
+
 class MIDIRecordContext:
     def __init__(self, file):
         self.midi = MIDIFile(1)
@@ -82,6 +98,7 @@ class SynthInterface:
         self.hertz = 0
         self.et = 12
         self.should_attack_decay_smoothing = True
+        self.calculate_pitch = calculate_pitch_et
 
     def get_midi_inputs(self):
         return [self.midi.getPortName(i) for i in range(self.midi.getPortCount())]
@@ -121,7 +138,7 @@ class SynthInterface:
         self.midi_status_label = tkinter.Label(self.frame_left, textvariable=self.midi_status_label_var)
         self.midi_status_label.pack()
 
-        self.tuning_label_var = tkinter.StringVar(self.root, "Tuning system: 12-et")
+        self.tuning_label_var = tkinter.StringVar(self.root, "Even-tempered tuning system: 12-et")
         self.tuning_label = tkinter.Label(self.frame_center, textvariable=self.tuning_label_var)
         self.tuning_label.pack()
         self.tuning_slider = tkinter.Scale(self.frame_center, from_=1, to_=64, orient=tkinter.HORIZONTAL, command=self.update_et)
@@ -139,6 +156,16 @@ class SynthInterface:
         self.volume_slider = tkinter.Scale(self.frame_center, from_=0, to_=100, orient=tkinter.HORIZONTAL, command=self.update_volume)
         self.volume_slider.pack()
         self.volume_slider.set(100)
+        self.tuning_type_label = tkinter.Label(self.frame_center, text="Tuning type:")
+        self.tuning_type_label.pack()
+        self.tuning_type = tkinter.StringVar(self.root)
+        self.tuning_type_et_radiobutton = ttk.Radiobutton(self.frame_center, text="Even-tempered", variable=self.tuning_type, value="et", command=self.update_tuning_type)
+        self.tuning_type_et_radiobutton.pack()
+        self.tuning_type_young_radiobutton = ttk.Radiobutton(self.frame_center, text="12-tone Young 1799 temperament", variable=self.tuning_type, value="young", command=self.update_tuning_type)
+        self.tuning_type_young_radiobutton.pack()
+        self.tuning_type_werck_radiobutton = ttk.Radiobutton(self.frame_center, text="12-tone Werckmeister temperament", variable=self.tuning_type, value="werckmeister", command=self.update_tuning_type)
+        self.tuning_type_werck_radiobutton.pack()
+        self.tuning_type.set("et")
         
         self.should_attack_decay_smoothing_checkbox = ttk.Checkbutton(self.frame_right, text="Apply attack/decay smoothing", onvalue=True, offvalue=False, command=self.update_should_attack_decay_smoothing)
         self.should_attack_decay_smoothing_checkbox.pack()
@@ -174,7 +201,7 @@ class SynthInterface:
         self.start_record_midi_button.pack()
         self.stop_record_midi_button = ttk.Button(self.frame_right, text="Stop", command=self.stop_record_midi)
         self.stop_record_midi_button.pack()
-        self.stop_record_button.state(['disabled'])
+        self.stop_record_midi_button.state(['disabled'])
         self.midi_record_status_label_var = tkinter.StringVar(self.root, "Not recording MIDI.")
         self.midi_record_status_label = tkinter.Label(self.frame_right, textvariable=self.midi_record_status_label_var)
         self.midi_record_status_label.pack()
@@ -226,6 +253,17 @@ class SynthInterface:
         info_window_label_4 = tkinter.Label(self.info_window, text="kevin.signal@gmail.com", fg="blue", cursor="hand2")
         info_window_label_4.pack()
         info_window_label_4.bind("<Button-1>", lambda _: callback("mailto:kevin.signal@gmail.com"))    
+
+    def update_tuning_type(self):
+        if self.tuning_type.get() == 'et':
+            self.calculate_pitch = calculate_pitch_et
+            self.tuning_slider.config(state='normal')
+        elif self.tuning_type.get() == 'young':
+            self.calculate_pitch = calculate_pitch_young
+            self.tuning_slider.config(state='disabled')
+        elif self.tuning_type.get() == 'werckmeister':
+            self.calculate_pitch = calculate_pitch_werckmeister
+            self.tuning_slider.config(state='disabled')
     
     def update_volume(self, _):
         self.volume = self.volume_slider.get()
@@ -233,7 +271,7 @@ class SynthInterface:
 
     def update_et(self, _):
         self.et = self.tuning_slider.get()
-        self.tuning_label_var.set(f"Tuning system: {self.et}-et")
+        self.tuning_label_var.set(f"Even-tempered tuning system: {self.et}-et")
     
     def update_hertz(self, _):
         self.hertz = self.hertz_slider.get()
@@ -251,6 +289,7 @@ class SynthInterface:
         self.update_hertz(None)
         self.should_attack_decay_smoothing_checkbox.state(['selected'])
         self.update_should_attack_decay_smoothing()
+        self.wave_type.set('sine')
 
     def select_midi_input(self):
         selected = self.midi_inputs_listbox.curselection()
@@ -273,6 +312,15 @@ class SynthInterface:
             tkinter.messagebox.showerror(self.title, "Please select a MIDI input first.")
             return
         
+        # Init MIDI.
+        self.synth_status_label_var.set("Initializing MIDI...")
+        try:
+            self.midi.openPort(self.port)
+        except rtmidi.Error as e:
+            self.synth_status_label_var.set("Synth stopped.")
+            tkinter.messagebox.showerror(f"Failed to initialize MIDI: {e}")
+            return
+
         # Init sound.
         self.synth_status_label_var.set("Initializing sound...")
         self.audio = pyaudio.PyAudio()
@@ -280,10 +328,6 @@ class SynthInterface:
                         channels=1,
                         rate=SAMPLE_RATE,
                         output=True)
-        
-        # Init MIDI.
-        self.synth_status_label_var.set("Initializing MIDI...")
-        self.midi.openPort(self.port)
 
         # Init sound generation vars.
         self.synth_status_label_var.set("Initializing...")
@@ -291,7 +335,6 @@ class SynthInterface:
         self.current_notes = []
         self.base = np.arange(int(SAMPLE_RATE * TIMEOUT / 1000))
         self.buffer = np.zeros(int(SAMPLE_RATE * TIMEOUT / 1000))
-        self.calculate_pitch = calculate_pitch_et
         self.attack_smoothing = self.base / len(self.base)
         self.decay_smoothing = (TIMEOUT / 1000 - self.base / SAMPLE_RATE) / (TIMEOUT / 1000)
 
