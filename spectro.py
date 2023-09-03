@@ -7,7 +7,7 @@ class Spectrogram:
     def __init__(self, file):
         self.file = file
         self.zoom_x = 1
-        self.zoom_y = 1
+        self.zoom_y = 5
         self.offset_x = 0
         self.offset_y = 0
         self.fft_width = 1024
@@ -15,6 +15,7 @@ class Spectrogram:
         self.total_samples = len(self.samples)
 
         pygame.init()
+        pygame.display.set_caption("Spectrogram")
         self.dims = [800, 500]
         self.screen = pygame.display.set_mode(self.dims)
         self.image = pygame.surfarray.pixels3d(self.screen)
@@ -65,7 +66,7 @@ class Spectrogram:
                 elif event.type == pygame.MOUSEWHEEL:
                     if pygame.key.get_pressed()[pygame.K_LCTRL]:
                         if pygame.key.get_pressed()[pygame.K_LSHIFT]:
-                            self.zoom_y += event.y / 50
+                            self.zoom_y += event.y / 3
                             if self.zoom_y <= 0.1:
                                 self.zoom_y = 0.1
                             self.render()
